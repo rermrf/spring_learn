@@ -732,13 +732,367 @@ service
 
 
 
-#### aop
+## aop
 
-面向方面编程
+#### **什么是AOP?**
 
-切入点：每次调用某方法后，自动执行其他方法
+AOP是Aspect Oriented Programming的缩写，意思是：面向切面编程，它是通过预编译方式和运行期动态代理实现程序功能的统一维护的一种技术。
+
+可以认为AOP是对OOP(Object Oriented Programming 面向对象编程)的补充，主要使用在日志记录，性能统计，安全控制等场景，使用AOP可以使得业务逻辑各部分之间的耦合度降低，只专注于各自的业务逻辑实现，从而提高程序的可读性及维护性。
+
+比如，我们需要记录项目中所有对外接口的入参和出参，以便出现问题时定位原因，在每一个对外接口的代码中添加代码记录入参和出参当然也可以达到目的，但是这种硬编码的方式非常不友好，也不够灵活，而且记录日志本身和接口要实现的核心功能没有任何关系。
+
+此时，我们可以将记录日志的功能定义到1个切面中，然后通过声明的方式定义要在何时何地使用这个切面，而不用修改任何1个外部接口。
+
+在讲解具体的实现方式之前，我们先了解几个AOP中的术语。
 
 
 
 
+
+#### 常用术语
+
+**1 通知(Advice)**
+
+在AOP术语中，切面要完成的工作被称为通知，通知定义了切面是什么以及何时使用。
+
+Spring切面有5种类型的通知，分别是：
+
+- **前置通知(Before**)：在目标方法被调用之前调用通知功能
+
+- **后置通知(After)**：在目标方法完成之后调用通知，此时不关心方法的输出结果是什么
+
+- **返回通知(After-returning)**：在目标方法成功执行之后调用通知
+
+- **异常通知(After-throwing)**：在目标方法抛出异常后调用通知
+
+- **环绕通知(Around)**：通知包裹了被通知的方法，在被通知的方法调用之前和调用之后执行自定义的行为
+
+- **最终通知(After FinallyAdvice)**：在目标方法执行完毕后。插入的通知(不论是正常返回还是异常退出)
+
+  
+
+**2 连接点(Join point)**
+
+连接点是在应用执行过程中能够插入切面的一个点，这个点可以是调用方法时、抛出异常时、修改某个字段时。
+
+
+
+**3 切点(Pointcut)**
+
+切点是为了缩小切面所通知的连接点的范围，即切面在何处执行。我们通常使用明确的类和方法名称，或者利用正则表达式定义所匹配的类和方法名称来指定切点。
+
+
+
+**4 切面(Aspect)**
+
+切面是通知和切点的结合。通知和切点共同定义了切面的全部内容：它是什么，在何时和何处完成其功能。
+
+
+
+**5 引入(Introduction)**
+
+引入允许我们在不修改现有类的基础上，向现有类添加新方法或属性。
+
+
+
+**6 织入(Weaving)**
+
+织入是把切面应用到目标对象并创建新的代理对象的过程。
+
+切面在指定的连接点被织入到目标对象中，在目标对象的生命周期里，有以下几个点可以进行织入：
+
+- 编译期：切面在目标类编译时被织入。这种方式需要特殊的编译器。AspectJ的织入编译器就是以这种方式织入切面的。
+- 类加载期：切面在目标类加载到JVM时被织入。这种方式需要特殊的类加载器(ClassLoader)，它可以在目标类被引入应用之前增强该目标类的字节码。
+- 运行期：切面在应用运行的某个时刻被织入。一般情况下，在织入切面时，AOP容器会为目标对象动态地创建一个代理对象。Spring AOP就是以这种方式织入切面的。
+
+
+
+
+
+
+
+#### 定义切面：
+
+1.jar包：
+
+spring-aop.jar
+
+
+
+2.配置
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+</beans>
+```
+
+
+
+#### 定义通知：
+
+**实现接口的方式定义通知：**
+
+<table>
+    <tr>
+    	<td>通知类型</td>
+        <td>需要实现的接口</td>
+        <td>接口中的方法</td>
+        <td>执行时机</td>
+    </tr>
+    <tr>
+    	<td>前置通知</td>
+        <td>org.springframework.aop.MethodBeforeAdvice</td>
+        <td>before()</td>
+        <td>目标方法执行前</td>
+    </tr>
+    <tr>
+    	<td>后置通知</td>
+        <td>org.springframework.aop.AfterReturningAdvice</td>
+        <td>afterReturning()</td>
+        <td>目标方法执行后</td>
+    </tr>
+    <tr>
+    	<td>异常通知</td>
+        <td>org.springframework.aop.ThrowsAdvice</td>
+        <td>无</td>
+        <td>目标方法发生异常时</td>
+    </tr>
+    <tr>
+    	<td>环绕通知</td>
+        <td>org.aopalliance.intercept.MethodInterceptor</td>
+        <td>invoke()</td>
+        <td>目标方法调用之前和之后</td>
+    </tr>
+</table>
+
+
+
+**一 通过spring api实现**
+
+①添加前置后置方法
+
+
+
+```dart
+public class AopBeforeConfigLog implements MethodBeforeAdvice {
+
+    /**
+     * method : 要执行的目标对象的方法
+     * args : 被调用的方法的参数
+     * target : 目标对象
+     */
+    @Override
+    public void before(Method method, Object[] args, Object target) throws Throwable {
+        System.out.println(target.getClass()+"===="+method.getName()+"被执行了");
+    }
+}
+```
+
+
+
+```dart
+public class AopAfterConfigLog implements AfterReturningAdvice {
+
+    /**
+     * method : 要执行的目标对象的方法
+     * args : 被调用的方法的参数
+     * result : 返回值
+     * target : 被调用的目标对象
+     */
+
+    @Override
+    public void afterReturning(Object result, Method method, Object[] args, Object target){
+        System.out.println(target.getClass()+"===="+method.getName()+"被执行了"+"===返回值"+result);
+    }
+}
+```
+
+②beans.xml
+
+
+
+```xml
+    <!--注册bean-->
+    <bean id="userService" class="service.UserServiceImpl"/>
+    <bean id="afterLog" class="aoptest.AopAfterConfigLog"/>
+    <bean id="beforeAop" class="aoptest.AopBeforeConfigLog"/>
+
+    <aop:config>
+        <!--切入点  expression:表达式匹配要执行的方法-->
+        <aop:pointcut id="cut" expression="execution(* service.UserServiceImpl.*(..))"/>
+
+        <!--执行环绕; advice-ref执行方法 . pointcut-ref切入点-->
+        <aop:advisor advice-ref="afterLog" pointcut-ref="cut"/>
+        <aop:advisor advice-ref="beforeAop" pointcut-ref="cut"/>
+    </aop:config>
+```
+
+③测试类：
+
+
+
+```cpp
+public class TestAop {
+    public static void main(String[] args) {
+        ApplicationContext Context = new ClassPathXmlApplicationContext("ContextAplication.xml");
+        UserService userService = (UserService) Context.getBean("userService");
+        userService.add();
+        userService.selete();
+        userService.update();
+        userService.delete();
+    }
+}
+```
+
+④总结：
+
+- 切面：横切的点
+- 通知：切面完成的工作，其实就是一个方法
+- 目标：被通知的对象
+- expression="execution(* service.UserServiceImpl.*(..))" 这是一套固定的公式 *代表所有 这句话的意思就是service.UserServiceImpl下的所有方法都被切面了！
+
+
+
+**二 自定义类来实现**
+
+①自定义被切入类
+
+
+
+```csharp
+/*
+* 自定义类
+* */
+public class MyDIYAopCut {
+    public void before(){
+        System.out.println("方法执行前前前前前前前前前前");
+    }
+    public void after(){
+        System.out.println("方法执行后后后后后后后后后后");
+    }
+}
+```
+
+②beans.xml
+
+
+
+```xml
+    <!--注册bean-->
+    <bean id="userService" class="service.UserServiceImpl"/>
+    <bean id="Mydiycut" class="diyaop.MyDIYAopCut"/>
+
+    <aop:config>
+        <!--这里的ref指定被 切入 的类是哪一个-->
+        <aop:aspect ref="Mydiycut">
+            <!--切入点-->
+            <aop:pointcut id="cut" expression="execution(* service.UserServiceImpl.*(..))"/>
+
+            <!--切入点之前执行,这里的方法名即是我们自定义类中的方法名-->
+            <aop:before method="before" pointcut-ref="cut"/>
+            <!--切入点之后执行,这里的方法名即是我们自定义类中的方法名-->
+            <aop:before method="after" pointcut-ref="cut"/>
+        </aop:aspect>
+    </aop:config>
+```
+
+③总结：
+
+- 测试类的方法即是xml中method的方法名
+
+- 其他见xml中的注释！
+
+
+
+
+
+**三 注解实现**
+
+①自定义增强注解实现类
+
+```java
+@Component("ServiceAspect")  //定义是一个Bean
+@Aspect //@Aspect注解表明ServiceAspect类是一个切面
+public class ServiceAspect {
+
+    //定义切点/切入点，该方法无方法体,主要为方便同类中其他方法使用此处配置的切入点
+    @Pointcut("execution(public void com.example.demo.Service.impl.UserServiceImpl.updateUser()))")
+    public void aspect(){
+    }
+
+    //@Before(value = "execution(public void com.example.demo.Service.impl.UserServiceImpl.addUser())")
+    @Before("aspect()") //配置前置通知,使用在方法aspect()上注册的切入点
+    public void before(){
+        System.out.println("前置通知...");
+    }
+
+    @After("aspect()")
+    public void after(){
+        System.out.println("后置通知...");
+    }
+}
+
+```
+
+
+
+②xml
+
+```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd"
+>
+    <!-- 配置扫描器 -->
+    <context:component-scan base-package="com.example.demo"></context:component-scan>
+
+    <!--声明自动为spring容器中那些配置@aspectJ切面的bean创建代理，织入切面-->
+    <aop:aspectj-autoproxy proxy-target-class="false"/>
+</beans>
+```
+
+③java
+
+```java
+@Service("UserService")     //注解定义Bean
+public class UserServiceImpl implements UserService {
+
+    @Value("#{UserDao}")    //属性注入
+    private UserDao userDao;
+
+    @Autowired
+    public UserServiceImpl(UserDao userDao) {
+        this.userDao = userDao;
+    }
+
+    @Override
+    public void updateUser() {
+        userDao.updateUser();
+    }
+}
+```
+
+
+
+④总结：
+
+- proxy-target-class="false" false 是以jdk实现动态代理 true 是以CGLib实现动态代理 这玩意我们一般使用默认机制，了解，知道有这么个玩意即可！
+- @Aspect：把当前类标识为一个切面供容器读取
+- @Before：方法执行前
+- @After：方法执行后
+- @Around：环绕式执行 ProceedingJoinPoint：环绕通知=前置+目标方法执行+后置通知。proceed方法就是用于启动目标方法执行的 就是必须得使用proceed(),相当于中间点，这样程序才能知道哪个是before哪个是after！
 
